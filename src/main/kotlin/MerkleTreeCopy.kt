@@ -70,8 +70,13 @@ class MerkleTreeCopy(override val rootHash: ByteArray) : MerkleTree {
         val treeUpdate = mutableListOf(c to hash)
         proof.hashes.forEach { siblingHash ->
             treeUpdate.add(c.sibling() to siblingHash)
-            digest.update(hash)
-            digest.update(siblingHash)
+            if (c.sibling() == c.right()) {
+                digest.update(hash)
+                digest.update(siblingHash)
+            } else {
+                digest.update(siblingHash)
+                digest.update(hash)
+            }
             hash = digest.digest()
             digest.reset()
             c = c.parent()
