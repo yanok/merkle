@@ -86,7 +86,8 @@ class MerkleTreeCopy(override val rootHash: ByteArray) : MerkleTree {
             // Here we verified the block, so we now know the tree size for sure. Let's create the tree,
             // if it doesn't exist yet.
             val tr = tree.get() ?: run {
-                tree.compareAndSet(null, ArrayTree<AtomicReference<ByteArray?>>(leaves, AtomicReference()))
+                tree.compareAndSet(null,
+                    ArrayTree<AtomicReference<ByteArray?>>(leaves) { AtomicReference() })
                 // we don't care if we won the race, just use the winner tree
                 // as an unfortunate side effect, we probably just allocated a big Array and threw it
                 // away immediately.

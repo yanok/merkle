@@ -5,6 +5,8 @@ class ArrayTree<T>(private val store: Array<T>) {
     companion object {
         inline operator fun <reified T> invoke(numberOfLeaves: Int, default: T) =
             ArrayTree(store = Array(2*numberOfLeaves) { default })
+        inline operator fun <reified T> invoke(numberOfLeaves: Int, default: () -> T) =
+            ArrayTree(store = Array(2*numberOfLeaves) { default() })
     }
     init {
         require(size > 1) { "ArrayTree can't be empty"}
