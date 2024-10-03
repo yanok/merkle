@@ -35,11 +35,15 @@ class MerkleTreeCopy(override val rootHash: ByteArray) : MerkleTree {
         }
 
     override fun getBlockWithProof(blockNumber: Int): Result<Pair<MerkleBlock, MerkleProof>> {
-        val nb = numberOfBlocks ?: return Result.failure(IllegalStateException())
-        if (blockNumber >= nb) return Result.failure(IndexOutOfBoundsException())
-        val bs = blocks.get() ?: return Result.failure(InternalError()) // shouldn't happen
-        val block = bs[blockNumber].get() ?: return Result.failure(NoSuchElementException())
-        val t = tree.get() ?: return Result.failure(InternalError())
+        val nb = numberOfBlocks ?: return Result.failure(IllegalStateException("Tree has no data yet"))
+        if (blockNumber >= nb) return Result.failure(IndexOutOfBoundsException(
+            "Block number $blockNumber is too big, we only have $nb blocks"))
+        val bs = blocks.get() ?: return Result.failure(InternalError(
+            "something went wrong: number of blocks is set but blocks is null")) // shouldn't happen
+        val block = bs[blockNumber].get() ?: return Result.failure(NoSuchElementException(
+            "We don't have block $blockNumber"))
+        val t = tree.get() ?: return Result.failure(InternalError(
+            "something went wrong: number of blocks is set but tree is null" ))
 
         // TODO: this part is the same as in MerkleTreeSOT, apart from having to deal with
         // AtomicReference... Generalize?
