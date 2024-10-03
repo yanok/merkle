@@ -2,16 +2,17 @@ package io.github.yanok
 
 import org.kotlincrypto.hash.sha3.Keccak224
 
-data class MerkleBlock(val blockNumber: Int, val blockSize: Int, val data: ByteArray) {
-    private val headerString = "[#$blockNumber/$blockSize/${data.size}]"
+data class MerkleBlock(val blockNumber: Int, val blockSize: Int, private val bytes: ByteArray) {
+    private val headerString = "[#$blockNumber/$blockSize/${bytes.size}]"
     val hash: ByteArray
+    val data = bytes.asList() // to prevent modification
     init {
-        require(data.size <= blockSize) { "actual size must be smaller or equal than the block size" }
+        require(bytes.size <= blockSize) { "actual size must be smaller or equal than the block size" }
         // Creating a local Digest here for simplicity, in production, if blocks are created often,
         // we might want to have a per-thread Digest or a pool of Digest instances.
         val digest = Keccak224()
         digest.update(headerString.toByteArray())
-        digest.update(data)
+        digest.update(bytes)
         hash = digest.digest();
     }
 
@@ -23,7 +24,7 @@ data class MerkleBlock(val blockNumber: Int, val blockSize: Int, val data: ByteA
 
         if (blockNumber != other.blockNumber) return false
         if (blockSize != other.blockSize) return false
-        if (!data.contentEquals(other.data)) return false
+        if (!bytes.contentEquals(other.bytes)) return false
 
         return true
     }
@@ -31,7 +32,7 @@ data class MerkleBlock(val blockNumber: Int, val blockSize: Int, val data: ByteA
     override fun hashCode(): Int {
         var result = blockNumber
         result = 31 * result + blockSize
-        result = 31 * result + data.contentHashCode()
+        result = 31 * result + bytes.contentHashCode()
         return result
     }
 }
