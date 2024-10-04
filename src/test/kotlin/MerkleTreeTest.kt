@@ -15,7 +15,6 @@ import io.kotest.property.arbitrary.triple
 import io.kotest.property.checkAll
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.experimental.xor
-import kotlin.streams.toList
 
 class MerkleTreeTest : StringSpec({
     val size = 20480
@@ -37,8 +36,7 @@ class MerkleTreeTest : StringSpec({
                     proof.hashes shouldBe sotProof.hashes
                 }
             } shouldBeSuccess Unit
-            (0 ..< 16).forEach { n ->
-                if (n == blockNr) return@forEach
+            (0 ..< nBlocks).filter { it != blockNr }.forEach { n ->
                 copy.getBlockWithProof(n) shouldBeFailure { it.message shouldBe "We don't have block $n"}
             }
         }
