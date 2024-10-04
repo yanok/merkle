@@ -3,6 +3,7 @@ import io.github.yanok.MerkleTreeCopy
 import io.github.yanok.MerkleTreeSOT
 import io.kotest.common.flatMap
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.result.shouldBeFailure
 import io.kotest.matchers.result.shouldBeSuccess
 import io.kotest.matchers.shouldBe
@@ -14,10 +15,11 @@ import io.kotest.property.arbitrary.triple
 import io.kotest.property.checkAll
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.experimental.xor
+import kotlin.streams.toList
 
 class MerkleTreeTest : StringSpec({
-    val size = 2048
-    val nBlocks = 16
+    val size = 20480
+    val nBlocks = 256
     val blockSize = size / nBlocks
     val data = ByteArray(size) { it.mod(256).toByte() }
     val sot = MerkleTreeSOT.withNumberOfBlocks(data, nBlocks)
@@ -77,18 +79,30 @@ class MerkleTreeTest : StringSpec({
         }
     }
     "send all the blocks concurrently" {
+        val nThreads = 8
+        val blocksPerThread = (nBlocks + nThreads - 1) / nThreads
         val copy = MerkleTreeCopy(sot.rootHash)
-        val blocksWithProofs = (0 ..< nBlocks).shuffled().map {
+        val blocksWithProofs = (0 ..< nBlocks).toList().parallelStream().map {
             val res = sot.getBlockWithProof(it)
             res shouldBeSuccess { }
             res.getOrThrow()
-        }
+        }.toList()
         val failed = AtomicBoolean(false)
-        val threads = blocksWithProofs.map { (block, proof) -> Thread {
-            if (copy.verifyAndAddBlock(block, proof).isFailure) failed.set(true)
+        val threads = blocksWithProofs.shuffled().chunked(blocksPerThread).map { blksAndPrfs -> Thread {
+            blksAndPrfs.forEach { (block, proof) ->
+                copy.verifyAndAddBlock(block, proof).onFailure { failed.set(true) }
+            }
         }}
+        threads shouldHaveSize nThreads
         threads.forEach { it.start() }
         threads.forEach { it.join() }
         failed.get() shouldBe false
+        copy.numberOfBlocks shouldBe nBlocks
+        (0 ..< nBlocks).forEach { i ->
+            copy.getBlockWithProof(i) shouldBeSuccess { (block, proof) ->
+                block shouldBe blocksWithProofs[i].first
+                proof.hashes shouldBe blocksWithProofs[i].second.hashes
+            }
+        }
     }
 })
