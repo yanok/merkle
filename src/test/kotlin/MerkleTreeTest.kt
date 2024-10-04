@@ -13,6 +13,7 @@ import io.kotest.property.arbitrary.pair
 import io.kotest.property.arbitrary.triple
 import io.kotest.property.checkAll
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.experimental.xor
 
 class MerkleTreeTest : StringSpec({
     val size = 2048
@@ -40,7 +41,19 @@ class MerkleTreeTest : StringSpec({
             }
         }
     }
-    "sending mutated block fails" {
+    "sending mutated block fails (flipping one bit)" {
+        val copy = MerkleTreeCopy(sot.rootHash)
+        checkAll(Arb.triple(Arb.int(0 ..< nBlocks), Arb.int(0 ..< blockSize), Arb.int(0 .. 7))) { (blockNr, pos, bitNr) ->
+            val result1 = sot.getBlockWithProof(blockNr)
+            result1 shouldBeSuccess { }
+            result1.flatMap { (block, proof) ->
+                val blockData = block.data.toByteArray()
+                blockData[pos] = (blockData[pos].xor(1.shl(bitNr).toByte()))
+                copy.verifyAndAddBlock(MerkleBlock(blockNr, blockSize, blockData), proof)
+            } shouldBeFailure { it.message shouldBe "Verification failed, block rejected" }
+        }
+    }
+    "sending mutated block fails (changing one byte)" {
         val copy = MerkleTreeCopy(sot.rootHash)
         checkAll(Arb.triple(Arb.int(0 ..< nBlocks), Arb.int(0 ..< blockSize), Arb.byte(min = 1))) { (blockNr, pos, diff) ->
             val result1 = sot.getBlockWithProof(blockNr)
